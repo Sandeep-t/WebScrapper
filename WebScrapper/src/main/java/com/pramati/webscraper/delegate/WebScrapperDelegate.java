@@ -14,23 +14,20 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.FileLock;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import javax.annotation.Resource;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 
-import com.pramati.webscraper.constants.WebScrapperConstants;
 import com.pramati.webscraper.dto.HtmlLink;
 import com.pramati.webscraper.dto.Request;
 import com.pramati.webscraper.dto.Response;
-import com.pramati.webscraper.executors.ThreadExecutor;
 import com.pramati.webscraper.utils.HTMLLinkExtractor;
 
 /**
@@ -49,35 +46,29 @@ public class WebScrapperDelegate {
 	HTMLLinkExtractor extractor;
 
 	@Autowired
-	ThreadExecutor executor;
-
-	@Resource(name = "applicationProperties")
-	private Properties applicationProperties;
-
-	public void intit() throws FileNotFoundException {
-
-		String destFilePath = ((applicationProperties.getProperty(WebScrapperConstants.DEST_DIR_PATH) != null || applicationProperties
-						.getProperty(WebScrapperConstants.DEST_DIR_PATH).trim().equals(""))) ? applicationProperties
-						.getProperty(WebScrapperConstants.DEST_DIR_PATH) : null;
-
-		if (destFilePath == null || !new File(destFilePath).isDirectory()) {
-			LOGGER.error("Path mentioned for the property target.file.location is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
-			//System.out.println("Path mentioned for the property target.file.location is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
-			System.exit(0);
-		}
-		String destFileName = ((applicationProperties.getProperty(WebScrapperConstants.DEST_FILE_NAME) != null || applicationProperties
-						.getProperty(WebScrapperConstants.DEST_FILE_NAME).trim() != "")) ? applicationProperties
-						.getProperty(WebScrapperConstants.DEST_FILE_NAME) : null;
-		if (destFileName == null) {
-			LOGGER.error("Path mentioned for the property target.file.location is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
-			//System.out.println("Path mentioned for the property target.file.location is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
-			System.exit(0);
-		}
-
-		out = new FileOutputStream(destFilePath + System.getProperty("file.separator") + destFileName);
-	}
+	ExecutorService executorService;
+	
+	private String destFilePathWithName;
+	
 
 	public BlockingQueue<Future<Response>> childFutureList = new LinkedBlockingQueue<Future<Response>>();
+
+	public WebScrapperDelegate(String destDirPath, String destFileName) {
+		if (StringUtils.hasLength(destDirPath) && !StringUtils.trimWhitespace(destDirPath).equals("")
+						&& StringUtils.hasLength(destFileName) && !StringUtils.trimWhitespace(destFileName).equals("")) {
+			if (!new File(destDirPath).isDirectory()) {
+				LOGGER.error("Path mentioned for the property target.file.location is invaild directory path. Exiting System please set a valid value and RESTART !!!!");
+				System.exit(0);
+			}
+			else {
+				destFilePathWithName = destDirPath + System.getProperty("file.separator") + destFileName;
+			}
+		}
+		else {
+			LOGGER.error("Path mentioned for the property target.file.location/web.scrapped.file.name is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
+			System.exit(0);
+		}
+	}
 
 	/**
 	 * This method will take html data in form of String and will return a list
@@ -91,12 +82,15 @@ public class WebScrapperDelegate {
 		 * Replace all one or more space characters with " "
 		 * 
 		 */
-		htmlData.replaceAll("\\s+", " ");
+		String updatedhtmlData = htmlData.replaceAll("\\s+", " ");
 		// final HTMLLinkExtractor extractor = new HTMLLinkExtractor();
-		final List<HtmlLink> links = extractor.grabHTMLLinks(htmlData);
+		final List<HtmlLink> links = extractor.grabHTMLLinks(updatedhtmlData);
 		for (HtmlLink link : links) {
+			LOGGER.debug("Processing link  "+link.getLink());
 			StringBuilder stbr = new StringBuilder();
 			stbr.append(webLink).append("/").append(link.getLink());
+			
+			LOGGER.debug("Link prepared finally "+stbr.toString());
 			try {
 				final Future<Response> response = getFutureAsResponse(stbr.toString());
 				childFutureList.add(response);
@@ -122,7 +116,7 @@ public class WebScrapperDelegate {
 			LOGGER.debug("Processing url " + urlString);
 			URL url = new URL(urlString);
 			Request task = new Request(url);
-			return executor.submitTask(task);
+			return executorService.submit(task);
 		}
 		catch (MalformedURLException e1) {
 			LOGGER.error("MalformedURLException occured while parsing the URL " + urlString, e1);
@@ -169,10 +163,13 @@ public class WebScrapperDelegate {
 	/**
 	 * A pooler that will keep pooling for the data in childFutureList queue and
 	 * will write the data received into a file.
+	 * @throws FileNotFoundException 
 	 */
-	public void stratResponsePooler() {
-
+	public void stratResponsePooler() throws FileNotFoundException {
+		
+		out = new FileOutputStream(destFilePathWithName);
 		// final FileHelper writer = new FileHelper();
+		
 		Runnable pooler = new Runnable() {
 
 			@Override
@@ -186,28 +183,12 @@ public class WebScrapperDelegate {
 
 						Response response = null;
 
+						FileLock lock = null;
+						
 						try {
 							response = future.get();
 							LOGGER.debug("Processing the response of the URL" + response.getUrl());
-						}
-						catch (InterruptedException e) {
-
-							catchExceptions(response, e);
-
-						}
-						catch (ExecutionException e) {
-
-							catchExceptions(response, e);
-
-						}
-						catch (IOException e) {
-
-							catchExceptions(response, e);
-						}
-
-						InputStream stream = response.getBody();
-						FileLock lock = null;
-						try {
+							InputStream stream = response.getBody();
 							lock = out.getChannel().lock();
 							IOUtils.copy(stream, out);
 						}
@@ -219,6 +200,14 @@ public class WebScrapperDelegate {
 							catch (IOException ioe) {
 								LOGGER.error("Exception occured while processing ", ioe);
 							}
+						}
+						catch (InterruptedException ie) {
+							catchExceptions(response, ie);
+							ie.printStackTrace();
+						}
+						catch (ExecutionException ee) {
+							catchExceptions(response, ee);
+							ee.printStackTrace();
 						}
 						finally {
 							try {
@@ -240,8 +229,6 @@ public class WebScrapperDelegate {
 						}
 
 					}
-					// LOGGER.debug("Toatal time  "+
-					// (System.currentTimeMillis()-current));
 
 				}
 			}
@@ -254,18 +241,39 @@ public class WebScrapperDelegate {
 					}
 					catch (IOException ioe) {
 						LOGGER.error("InterruptedException occured while processing the Request ", ioe);
-						// ioe.printStackTrace();
+						
 					}
 				}
 				if (e instanceof ExecutionException) {
-					try {
-						LOGGER.error("ExecutionException occured while processing the Request " + response.getUrl()
-										+ "  " + "with status code " + response.getResponseCode(), e);
+					
+					if(e.getCause() instanceof FileNotFoundException){
+						try {
+							
+							if(response==null){
+								LOGGER.error("FileNotFoundException occured while processing the Request " , e);	
+							}
+							else{
+								LOGGER.error("FileNotFoundException occured while processing the Request " + response.getUrl()
+												+ "  " + "with status code " + response.getResponseCode(), e);
+										
+							}
+							
+						}
+						catch (IOException ioe) {
+							LOGGER.error("ExecutionException occured while processing the Request ", ioe);
+							//ioe.printStackTrace();
+						}
+					}else{
+						try {
+							LOGGER.error("ExecutionException occured while processing the Request " + response.getUrl()
+											+ "  " + "with status code " + response.getResponseCode(), e);
+						}
+						catch (IOException ioe) {
+							LOGGER.error("ExecutionException occured while processing the Request ", ioe);
+							//ioe.printStackTrace();
+						}
 					}
-					catch (IOException ioe) {
-						LOGGER.error("ExecutionException occured while processing the Request ", ioe);
-						// ioe.printStackTrace();
-					}
+					
 				}
 
 				if (e instanceof IOException) {
@@ -283,7 +291,7 @@ public class WebScrapperDelegate {
 
 			}
 		};
-		executor.executeTask(pooler);
+		executorService.execute(pooler);
 	}
 
 }

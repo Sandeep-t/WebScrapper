@@ -6,7 +6,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+
+import javax.annotation.Resource;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -22,6 +25,10 @@ public class WebScrapperServiceTest {
 
 	@Autowired
 	WebScrapperService webScrapperService;
+	
+	
+	@Resource(name = "applicationProperties")
+	private Properties applicationProperties;
 
 	@Test
 	public void testStartWebScrapping() throws FileNotFoundException, MalformedURLException, InterruptedException,
@@ -29,8 +36,8 @@ public class WebScrapperServiceTest {
 
 		webScrapperService.startWebScrapping();
 		Thread.sleep(10000);
-		assertEquals("The Data File got created hence the test Passed ", (new File("D:/Test/WebScrappedData1.html")
-						.exists() && new File("D:/Test/WebScrappedData1.html").length() > 0), true);
+		assertEquals("The Data File got created hence the test Passed ", (new File(applicationProperties.getProperty("web.scrapped.file.name.path"))
+						.exists() && new File(applicationProperties.getProperty("web.scrapped.file.name.path")).length() > 0), true);
 	}
 
 }
