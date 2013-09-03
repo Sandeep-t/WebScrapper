@@ -26,7 +26,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import com.pramati.webscraper.constants.WebScrapperConstants;
 import com.pramati.webscraper.delegate.WebScrapperDelegate;
 import com.pramati.webscraper.dto.Response;
 
@@ -112,12 +111,12 @@ public class WebScrapperDelegateTest {
 	public void testGetFutureAsResponse() {
 		Future<Response> htmlResponse = null;
 		try {
-			String str = applicationProperties.getProperty(WebScrapperConstants.WEB_URL_PATH);
+			String str = applicationProperties.getProperty("web.scrapper.url");
 			htmlResponse = webScrapper.getFutureAsResponse(str);
 		}
 		catch (MalformedURLException e) {
 			LOGGER.error("MalformedURLException occured with the url "
-							+ applicationProperties.getProperty(WebScrapperConstants.WEB_URL_PATH), e);
+							+ applicationProperties.getProperty("web.scrapper.url"), e);
 			htmlResponse = null;
 		}
 		assertEquals("This test passed so URL seems to be OK ", htmlResponse != null, true);

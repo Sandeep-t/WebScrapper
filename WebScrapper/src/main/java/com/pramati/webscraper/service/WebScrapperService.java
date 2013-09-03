@@ -34,21 +34,23 @@ public class WebScrapperService {
 	public void startWebScrapping() throws FileNotFoundException, MalformedURLException, InterruptedException,
 					ExecutionException, IOException {
 
-		String urlOfMainPage = url;
+		
 
-		LOGGER.debug("Processing Url  " + urlOfMainPage);
+		LOGGER.debug("Processing Url  " + url);
 
 		webScrapper.stratResponsePooler();
 
-		Future<Response> futureResponse = webScrapper.getFutureAsResponse(urlOfMainPage);
+		Future<Response> futureResponse = webScrapper.getFutureAsResponse(url);
 
 		InputStream responseStream = futureResponse.get().getBody();
 
 		final String pageData = webScrapper.getPageData(responseStream);
 		
-		LOGGER.debug("Constant part of the Weblink "+urlOfMainPage.substring(0, urlOfMainPage.lastIndexOf('/')));
+		String urlSubstring=url.substring(0, url.lastIndexOf('/'));
+		
+		LOGGER.debug("Constant part of the Weblink "+urlSubstring);
 
-		webScrapper.processWeblinksinPageData(pageData, urlOfMainPage.substring(0, urlOfMainPage.lastIndexOf('/')));
+		webScrapper.processWeblinksinPageData(pageData, urlSubstring);
 		
 		//executorService.shutdown();
 		
