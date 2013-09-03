@@ -20,6 +20,8 @@ public class WebScrapperService {
 	WebScrapperDelegate webScrapper;
 
 
+	@Autowired
+	ExecutorService executorService;
 
 	private static final Logger LOGGER = Logger.getLogger(WebScrapperService.class);
 
@@ -47,6 +49,9 @@ public class WebScrapperService {
 		LOGGER.debug("Constant part of the Weblink "+urlOfMainPage.substring(0, urlOfMainPage.lastIndexOf('/')));
 
 		webScrapper.processWeblinksinPageData(pageData, urlOfMainPage.substring(0, urlOfMainPage.lastIndexOf('/')));
+		
+		//executorService.shutdown();
+		
 
 	}
 

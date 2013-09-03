@@ -39,7 +39,7 @@ import com.pramati.webscraper.utils.HTMLLinkExtractor;
 public class WebScrapperDelegate {
 
 	private static final Logger LOGGER = Logger.getLogger(WebScrapperDelegate.class);
-	
+
 	private FileOutputStream out;
 
 	@Autowired
@@ -47,9 +47,10 @@ public class WebScrapperDelegate {
 
 	@Autowired
 	ExecutorService executorService;
-	
+
 	private String destFilePathWithName;
-	
+
+	private boolean stopPooler = false;
 
 	public BlockingQueue<Future<Response>> childFutureList = new LinkedBlockingQueue<Future<Response>>();
 
@@ -83,23 +84,25 @@ public class WebScrapperDelegate {
 		 * 
 		 */
 		String updatedhtmlData = htmlData.replaceAll("\\s+", " ");
-		// final HTMLLinkExtractor extractor = new HTMLLinkExtractor();
+
 		final List<HtmlLink> links = extractor.grabHTMLLinks(updatedhtmlData);
 		for (HtmlLink link : links) {
-			LOGGER.debug("Processing link  "+link.getLink());
+			LOGGER.debug("Processing link  " + link.getLink());
 			StringBuilder stbr = new StringBuilder();
 			stbr.append(webLink).append("/").append(link.getLink());
-			
-			LOGGER.debug("Link prepared finally "+stbr.toString());
+
+			LOGGER.debug("Link prepared finally " + stbr.toString());
 			try {
 				final Future<Response> response = getFutureAsResponse(stbr.toString());
 				childFutureList.add(response);
 			}
 			catch (MalformedURLException e1) {
 				LOGGER.error("MalformedURLException occured while parsing the URL " + stbr.toString(), e1);
-
 			}
+
 		}
+		stopPooler = true;
+
 	}
 
 	/**
@@ -163,19 +166,20 @@ public class WebScrapperDelegate {
 	/**
 	 * A pooler that will keep pooling for the data in childFutureList queue and
 	 * will write the data received into a file.
-	 * @throws FileNotFoundException 
+	 * 
+	 * @throws FileNotFoundException
 	 */
 	public void stratResponsePooler() throws FileNotFoundException {
-		
+
 		out = new FileOutputStream(destFilePathWithName);
 		// final FileHelper writer = new FileHelper();
-		
+
 		Runnable pooler = new Runnable() {
 
 			@Override
 			public void run() {
 
-				while (true) {
+				while (!stopPooler || childFutureList.size() > 0) {
 
 					Future<Response> future;
 
@@ -184,30 +188,41 @@ public class WebScrapperDelegate {
 						Response response = null;
 
 						FileLock lock = null;
-						
+						URL url = null;
+						int responseCode = 0;
 						try {
+
 							response = future.get();
+							url = response.getUrl();
+							responseCode = response.getResponseCode();
 							LOGGER.debug("Processing the response of the URL" + response.getUrl());
 							InputStream stream = response.getBody();
 							lock = out.getChannel().lock();
 							IOUtils.copy(stream, out);
+
 						}
 						catch (IOException cause) {
-							try {
-								LOGGER.error("IOException occred while writing file for the URL " + response.getUrl(),
-												cause);
-							}
-							catch (IOException ioe) {
-								LOGGER.error("Exception occured while processing ", ioe);
-							}
+							LOGGER.error("IOException occred while writing file for the URL " + url, cause);
 						}
 						catch (InterruptedException ie) {
-							catchExceptions(response, ie);
-							ie.printStackTrace();
+							LOGGER.error("InterruptedException occured while processing the Request " + url + "  "
+											+ "with status code " + responseCode, ie);
+
 						}
 						catch (ExecutionException ee) {
-							catchExceptions(response, ee);
-							ee.printStackTrace();
+
+							if (ee.getCause() instanceof FileNotFoundException) {
+
+								LOGGER.error("FileNotFoundException occured while processing the Request " + url + "  "
+												+ "with status code " + responseCode, ee);
+
+							}
+							else {
+
+								LOGGER.error("ExecutionException occured while processing the Request " + url + "  "
+												+ "with status code " + responseCode, ee);
+							}
+
 						}
 						finally {
 							try {
@@ -216,81 +231,18 @@ public class WebScrapperDelegate {
 								}
 							}
 							catch (IOException cause) {
-								try {
-									LOGGER.error("Exception occured while releasing the lock, writing file for "
-													+ response.getUrl(), cause);
-								}
-								catch (IOException ioe) {
-									LOGGER.error("Exception occured while processing ", ioe);
-									ioe.printStackTrace();
-								}
+
+								LOGGER.error("Exception occured while releasing the lock, writing file for " + url,
+												cause);
 
 							}
 						}
 
 					}
-
 				}
-			}
-
-			private void catchExceptions(Response response, Exception e) {
-				if (e instanceof InterruptedException) {
-					try {
-						LOGGER.error("InterruptedException occured while processing the Request " + response.getUrl()
-										+ "  " + "with status code " + response.getResponseCode(), e);
-					}
-					catch (IOException ioe) {
-						LOGGER.error("InterruptedException occured while processing the Request ", ioe);
-						
-					}
-				}
-				if (e instanceof ExecutionException) {
-					
-					if(e.getCause() instanceof FileNotFoundException){
-						try {
-							
-							if(response==null){
-								LOGGER.error("FileNotFoundException occured while processing the Request " , e);	
-							}
-							else{
-								LOGGER.error("FileNotFoundException occured while processing the Request " + response.getUrl()
-												+ "  " + "with status code " + response.getResponseCode(), e);
-										
-							}
-							
-						}
-						catch (IOException ioe) {
-							LOGGER.error("ExecutionException occured while processing the Request ", ioe);
-							//ioe.printStackTrace();
-						}
-					}else{
-						try {
-							LOGGER.error("ExecutionException occured while processing the Request " + response.getUrl()
-											+ "  " + "with status code " + response.getResponseCode(), e);
-						}
-						catch (IOException ioe) {
-							LOGGER.error("ExecutionException occured while processing the Request ", ioe);
-							//ioe.printStackTrace();
-						}
-					}
-					
-				}
-
-				if (e instanceof IOException) {
-
-					try {
-						LOGGER.error("IOException occured while processing the Request " + response.getUrl() + "  "
-										+ "with status code " + response.getResponseCode(), e);
-					}
-					catch (IOException ioe) {
-						LOGGER.error("IOException occured while processing the Request ", ioe);
-						// ioe.printStackTrace();
-					}
-
-				}
-
 			}
 		};
+		
 		executorService.execute(pooler);
 	}
 
