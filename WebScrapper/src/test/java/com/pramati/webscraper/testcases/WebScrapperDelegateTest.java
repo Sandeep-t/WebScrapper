@@ -5,10 +5,8 @@ package com.pramati.webscraper.testcases;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -18,8 +16,8 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Resource;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,30 +44,6 @@ public class WebScrapperDelegateTest {
 	@Resource(name = "applicationProperties")
 	private Properties applicationProperties;
 
-	//private String htmlData;
-
-	private String readFile(String file) throws IOException {
-		BufferedReader reader = new BufferedReader(new FileReader(file));
-		String line = null;
-		StringBuilder stringBuilder = new StringBuilder();
-		String ls = System.getProperty("line.separator");
-
-		while ((line = reader.readLine()) != null) {
-			stringBuilder.append(line);
-			stringBuilder.append(ls);
-		}
-
-		return stringBuilder.toString();
-	}
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@BeforeClass
-	public static void setUpBeforeClass() throws Exception {
-		
-
-	}
 
 	/**
 	 * Test method for
@@ -84,12 +58,13 @@ public class WebScrapperDelegateTest {
 	@Test
 	public void testProcessWeblinksinPageData() throws InterruptedException, ExecutionException, IOException {
 
-		String htmlData = readFile(applicationProperties.getProperty("sample.html.file.path")); 
+		String htmlData = FileUtils.readFileToString(
+				        FileUtils.toFile(this.getClass().getResource("/input/FiletoExtraxtHtmlLinks.html")
+				    ));
 		
 		webScrapper.stratResponsePooler();
-
-		webScrapper.processWeblinksinPageData(htmlData,
-						"http://www.mail-archive.com/cassandra-user@incubator.apache.org");
+		
+		webScrapper.processWeblinksinPageData(htmlData,applicationProperties.getProperty("constant.url.link"));
 		try {
 			Thread.sleep(10000);
 		}
@@ -134,7 +109,9 @@ public class WebScrapperDelegateTest {
 
 	@Test
 	public void testGetPageData() throws InterruptedException, ExecutionException, IOException {
-		String htmlData = readFile(applicationProperties.getProperty("sample.html.file.path"));
+		String htmlData = FileUtils.readFileToString(
+				        FileUtils.toFile(this.getClass().getResource("/input/FiletoExtraxtHtmlLinks.html")
+				    ));
 		InputStream dataStream = new ByteArrayInputStream(htmlData.getBytes());
 		assertEquals("This test passed hence stream to string conversion is working fine ",
 						(webScrapper.getPageData(dataStream) != null || webScrapper.getPageData(dataStream).equals("")),

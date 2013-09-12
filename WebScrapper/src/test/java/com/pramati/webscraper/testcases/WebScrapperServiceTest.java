@@ -36,7 +36,7 @@ public class WebScrapperServiceTest {
 
 		webScrapperService.startWebScrapping();
 		Thread.sleep(10000);
-		assertEquals("The Data File got created hence the test Passed ", (new File(applicationProperties.getProperty("web.scrapped.file.name.path"))
+		assertEquals("Test result ", (new File(applicationProperties.getProperty("web.scrapped.file.name.path"))
 						.exists() && new File(applicationProperties.getProperty("web.scrapped.file.name.path")).length() > 0), true);
 	}
 

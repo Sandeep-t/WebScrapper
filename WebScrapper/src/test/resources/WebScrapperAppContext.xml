@@ -10,7 +10,7 @@
 	<property name="location" value="application.properties"></property>
 	</bean>
 	
-	
+	<import resource="WebScrapperDBContext.xml"/>
 	
 	<bean id="properties"
 		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
