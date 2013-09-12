@@ -22,7 +22,11 @@ public class WebScrapperService {
 
 	@Autowired
 	ExecutorService executorService;
+	
+	@Autowired
+	LuceneSearchService luceneSearch;
 
+	
 	private static final Logger LOGGER = Logger.getLogger(WebScrapperService.class);
 
 	String url;
@@ -33,8 +37,6 @@ public class WebScrapperService {
 
 	public void startWebScrapping() throws FileNotFoundException, MalformedURLException, InterruptedException,
 					ExecutionException, IOException {
-
-		
 
 		LOGGER.debug("Processing Url  " + url);
 
@@ -52,9 +54,12 @@ public class WebScrapperService {
 
 		webScrapper.processWeblinksinPageData(pageData, urlSubstring);
 		
+		luceneSearch.startIndexing();
+		
 		//executorService.shutdown();
 		
 
 	}
+	
 
 }

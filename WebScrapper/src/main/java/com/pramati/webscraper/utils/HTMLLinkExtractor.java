@@ -51,7 +51,8 @@ public class HTMLLinkExtractor {
 
 			String href = matcherTag.group(1); 
 			LOGGER.info("Group 1 " + href);
-
+			String linkText = matcherTag.group(2);
+			LOGGER.debug("Group 2 " + linkText);
 			matcherLink = patternLink.matcher(href);
 
 			while (matcherLink.find()) {
@@ -60,9 +61,18 @@ public class HTMLLinkExtractor {
 
 				LOGGER.info("link  " + linkAddress);
 
-				final HtmlLink links = new HtmlLink(linkAddress);
+				final HtmlLink link = new HtmlLink(linkAddress,linkText);
+				
+				/**
+				 *1. check if the link contains Earlier-Messages from a static map loaded in the Startup
+				 *map.keyset.conatins() 
+				 *2. If 
+				 * 
+				 * 
+				 * 
+				 */
 
-				result.add(links);
+				result.add(link);
 
 			}
 

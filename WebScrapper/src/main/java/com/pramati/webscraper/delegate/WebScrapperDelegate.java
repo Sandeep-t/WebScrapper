@@ -6,13 +6,12 @@ package com.pramati.webscraper.delegate;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.channels.FileLock;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -25,9 +24,11 @@ import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 
+import com.pramati.webscraper.db.model.ExtractedDataDetails;
 import com.pramati.webscraper.dto.HtmlLink;
 import com.pramati.webscraper.dto.Request;
 import com.pramati.webscraper.dto.Response;
+import com.pramati.webscraper.service.WebScrapperDbService;
 import com.pramati.webscraper.utils.HTMLLinkExtractor;
 
 /**
@@ -40,13 +41,17 @@ public class WebScrapperDelegate {
 
 	private static final Logger LOGGER = Logger.getLogger(WebScrapperDelegate.class);
 
-	private FileOutputStream out;
-
 	@Autowired
 	HTMLLinkExtractor extractor;
 
 	@Autowired
 	ExecutorService executorService;
+
+	@Autowired
+	WebScrapperDbService dbService;
+
+	@Autowired
+	LuceneTaskDelegate helper;
 
 	private String destFilePathWithName;
 
@@ -62,7 +67,7 @@ public class WebScrapperDelegate {
 				System.exit(0);
 			}
 			else {
-				destFilePathWithName = destDirPath + System.getProperty("file.separator") + destFileName;
+				destFilePathWithName = destDirPath + File.separator + destFileName;
 			}
 		}
 		else {
@@ -87,22 +92,25 @@ public class WebScrapperDelegate {
 
 		final List<HtmlLink> links = extractor.grabHTMLLinks(updatedhtmlData);
 		for (HtmlLink link : links) {
+			
 			LOGGER.debug("Processing link  " + link.getLink());
+			
 			StringBuilder stbr = new StringBuilder();
+			
 			stbr.append(webLink).append("/").append(link.getLink());
-
+			
 			LOGGER.debug("Link prepared finally " + stbr.toString());
 			try {
 				final Future<Response> response = getFutureAsResponse(stbr.toString());
 				childFutureList.add(response);
 			}
 			catch (MalformedURLException e1) {
+				
 				LOGGER.error("MalformedURLException occured while parsing the URL " + stbr.toString(), e1);
 			}
 
 		}
 		stopPooler = true;
-
 	}
 
 	/**
@@ -129,8 +137,8 @@ public class WebScrapperDelegate {
 
 	/**
 	 * 
-	 * This fuction will be used to get the html response after parsing the data
-	 * from future passed to the function.
+	 * This function will be used to get the html response after parsing the
+	 * data from future passed to the function.
 	 * 
 	 * @param responseList
 	 * @return
@@ -171,8 +179,7 @@ public class WebScrapperDelegate {
 	 */
 	public void stratResponsePooler() throws FileNotFoundException {
 
-		out = new FileOutputStream(destFilePathWithName);
-		// final FileHelper writer = new FileHelper();
+		// out = new FileOutputStream(destFilePathWithName);
 
 		Runnable pooler = new Runnable() {
 
@@ -186,19 +193,19 @@ public class WebScrapperDelegate {
 					while ((future = childFutureList.poll()) != null) {
 
 						Response response = null;
-
-						FileLock lock = null;
 						URL url = null;
 						int responseCode = 0;
 						try {
-
 							response = future.get();
 							url = response.getUrl();
 							responseCode = response.getResponseCode();
 							LOGGER.debug("Processing the response of the URL" + response.getUrl());
-							InputStream stream = response.getBody();
-							lock = out.getChannel().lock();
-							IOUtils.copy(stream, out);
+
+							ExtractedDataDetails details = new ExtractedDataDetails(url.toString(), responseCode,
+											destFilePathWithName, IOUtils.toString(response.getBody()), new Date(),
+											"WebScrapper");
+
+							dbService.insertExtractedData(details);
 
 						}
 						catch (IOException cause) {
@@ -218,32 +225,37 @@ public class WebScrapperDelegate {
 
 							}
 							else {
-
 								LOGGER.error("ExecutionException occured while processing the Request " + url + "  "
 												+ "with status code " + responseCode, ee);
 							}
 
 						}
-						finally {
-							try {
-								if (lock != null) {
-									lock.release();
-								}
-							}
-							catch (IOException cause) {
-
-								LOGGER.error("Exception occured while releasing the lock, writing file for " + url,
-												cause);
-
-							}
-						}
-
 					}
 				}
 			}
 		};
-		
+
 		executorService.execute(pooler);
 	}
+
+	/*
+	 * public void createLuceneIndexForFile(String filePath){ try { LuceneHelper
+	 * helper= new LuceneHelper();
+	 * 
+	 * InputStream is = new FileInputStream(new File(destFilePathWithName));
+	 * 
+	 * String string = IOUtils.toString(is,"UTF-8");
+	 * 
+	 * helper.addDoc(string);
+	 * 
+	 * List<Document> list=helper.getDocumentsForQueryString(
+	 * "Would deleted columns slow down reads?");
+	 * 
+	 * } catch (IOException e) { // TODO Auto-generated catch block
+	 * e.printStackTrace(); } catch (ParseException e) { // TODO Auto-generated
+	 * catch block e.printStackTrace(); }
+	 * 
+	 * }
+	 */
 
 }

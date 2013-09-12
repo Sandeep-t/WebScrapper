@@ -4,6 +4,7 @@
 package com.pramati.webscraper.dto;
 
 
+
 /**
  * Every html link in HTML data will contain 2 parts actual link and the
  * textpart(displayed in the webpage).This Class will serve as the object of
@@ -17,9 +18,10 @@ public class HtmlLink {
 	private String link;
 	private String linkText;
 
-	public HtmlLink(String link) {
+	public HtmlLink(String link,String linkText) {
 
 		this.link = replaceInvalidChar(link);
+		this.linkText=linkText;
 
 	};
 
@@ -38,10 +40,9 @@ public class HtmlLink {
 
 	private String replaceInvalidChar(String link) {
 		
-		final String replacedLink = link.replaceAll("'", "");
-
-		return replacedLink.replaceAll("\"", "");
+		return link.replaceAll("[\"|']", "");
 		
 	}
+
 
 }

@@ -1,5 +1,8 @@
 package com.pramati.webscraper.main;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -17,11 +20,9 @@ public final class WebScrapperApp {
 		ApplicationContext  ctx = new ClassPathXmlApplicationContext("WebScrapperAppContext.xml");
 
 		WebScrapperService webScraperService = (WebScrapperService) ctx.getBean("webScraperService");
-	
+		
 		webScraperService.startWebScrapping();
 		
-	
-	
 
 	}
 

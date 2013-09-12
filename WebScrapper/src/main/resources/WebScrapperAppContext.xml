@@ -5,6 +5,9 @@
 	http://www.springframework.org/schema/context
 	http://www.springframework.org/schema/context/spring-context-2.5.xsd">
 
+
+	<import resource="WebScrapperDBContext.xml"/>
+	
 	<bean id="properties"
 		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 		<property name="location" value="classpath:application.properties" />
@@ -27,6 +30,13 @@
 		factory-method="newFixedThreadPool">
 		<constructor-arg value="${executor.pool.thread.count}" />
 	</bean>
+	
+	<bean id="helper" class="com.pramati.webscraper.delegate.LuceneTaskDelegate" init-method="indexDbDataonStartup"	>
+	<constructor-arg value="${index.directory.file.path}" />
+	</bean>
+	
+	<bean id="luceneSearch" class="com.pramati.webscraper.service.LuceneSearchService" />
+	
 
 
 </beans>
