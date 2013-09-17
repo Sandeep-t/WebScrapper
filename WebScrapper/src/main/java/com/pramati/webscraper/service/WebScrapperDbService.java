@@ -19,16 +19,19 @@ public class WebScrapperDbService {
 	ExtractedDataDetailsDelegate detailsDelegate;
 	
 	@Autowired
-	LuceneTaskDelegate lucHelper;
+	LuceneTaskDelegate helper;
 	
 	public void insertExtractedData(ExtractedDataDetails detail) throws IOException, InterruptedException{
+		
 		detailsDelegate.insertIntoExtractedDataDetails(detail);
-		lucHelper.addTodataDetailsQueue(detail);
+		
+		helper.addTodataDetailsQueue(detail);
 		
 	}
 	
 	
 	public List<ExtractedDataDetails> getAllRecords(){
+		
 		return detailsDelegate.getAllRecordDetails();
 		
 	}

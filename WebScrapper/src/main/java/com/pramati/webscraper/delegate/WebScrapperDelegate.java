@@ -4,7 +4,6 @@
 package com.pramati.webscraper.delegate;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,7 +11,9 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +23,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.StringUtils;
 
 import com.pramati.webscraper.db.model.ExtractedDataDetails;
 import com.pramati.webscraper.dto.HtmlLink;
@@ -53,27 +53,31 @@ public class WebScrapperDelegate {
 	@Autowired
 	LuceneTaskDelegate helper;
 
-	private String destFilePathWithName;
+	//private String destFilePathWithName;
 
-	private boolean stopPooler = false;
 
-	public BlockingQueue<Future<Response>> childFutureList = new LinkedBlockingQueue<Future<Response>>();
+	private BlockingQueue<Future<Response>> childFutureList = new LinkedBlockingQueue<Future<Response>>();
 
-	public WebScrapperDelegate(String destDirPath, String destFileName) {
-		if (StringUtils.hasLength(destDirPath) && !StringUtils.trimWhitespace(destDirPath).equals("")
-						&& StringUtils.hasLength(destFileName) && !StringUtils.trimWhitespace(destFileName).equals("")) {
-			if (!new File(destDirPath).isDirectory()) {
-				LOGGER.error("Path mentioned for the property target.file.location is invaild directory path. Exiting System please set a valid value and RESTART !!!!");
-				System.exit(0);
-			}
-			else {
-				destFilePathWithName = destDirPath + File.separator + destFileName;
-			}
-		}
-		else {
-			LOGGER.error("Path mentioned for the property target.file.location/web.scrapped.file.name is invaild/null/improper. Exiting System please set a valid value and RESTART !!!!");
-			System.exit(0);
-		}
+	public void addToList(Future<Response> response) {
+		childFutureList.add(response);
+
+	}
+
+	private Map<String, String> furtherProcesshtmlLinks = new HashMap<String, String>();
+	private Map<String, String> doNotProcesshtmlLinks = new HashMap<String, String>();
+
+	private Map<String, String> htmlLinkTextMap = new HashMap<String, String>();
+
+	private BlockingQueue<String> nextPageDataQueue = new LinkedBlockingQueue<String>();
+
+	public WebScrapperDelegate() {
+
+		furtherProcesshtmlLinks.put("Earlier messages", null);
+		furtherProcesshtmlLinks.put("Later messages", null);
+		furtherProcesshtmlLinks.put("Thread", null);
+		doNotProcesshtmlLinks.put("Later messages", null);
+		doNotProcesshtmlLinks.put("Thread", null);
+
 	}
 
 	/**
@@ -82,8 +86,9 @@ public class WebScrapperDelegate {
 	 * 
 	 * @param htmlData
 	 * @return list of webaddress
+	 * @throws InterruptedException
 	 */
-	public void processWeblinksinPageData(String htmlData, String webLink) {
+	public void processWeblinksinPageData(String htmlData, String webLink) throws InterruptedException {
 		/**
 		 * Replace all one or more space characters with " "
 		 * 
@@ -91,26 +96,50 @@ public class WebScrapperDelegate {
 		String updatedhtmlData = htmlData.replaceAll("\\s+", " ");
 
 		final List<HtmlLink> links = extractor.grabHTMLLinks(updatedhtmlData);
+
 		for (HtmlLink link : links) {
-			
+
 			LOGGER.debug("Processing link  " + link.getLink());
-			
+
 			StringBuilder stbr = new StringBuilder();
-			
+
 			stbr.append(webLink).append("/").append(link.getLink());
-			
-			LOGGER.debug("Link prepared finally " + stbr.toString());
-			try {
-				final Future<Response> response = getFutureAsResponse(stbr.toString());
-				childFutureList.add(response);
+
+			if (!furtherProcesshtmlLinks.keySet().contains(link.getLinkText())) {
+
+				LOGGER.debug("Link prepared finally " + stbr);
+				try {
+					final Future<Response> response = getFutureAsResponse(stbr.toString());
+					childFutureList.add(response);
+				}
+				catch (MalformedURLException e1) {
+					LOGGER.error("MalformedURLException occured while parsing the URL " + stbr, e1);
+				}
 			}
-			catch (MalformedURLException e1) {
-				
-				LOGGER.error("MalformedURLException occured while parsing the URL " + stbr.toString(), e1);
+			else {
+				StringBuilder stbro = new StringBuilder();
+
+				stbro.append(webLink).append("/").append(link.getLink());
+
+				if (doNotProcesshtmlLinks.keySet().contains(link.getLinkText())) {
+
+					LOGGER.debug("Not processing the link  " + stbro + " as it is not required ");
+				}
+				else {
+					if (htmlLinkTextMap.get(stbro.toString()) == null) {
+						LOGGER.debug("PROCESSING Earlier Message  " + stbro);
+						htmlLinkTextMap.put(stbro.toString(), link.getLink());
+						nextPageDataQueue.put(stbro.toString());
+					}
+					else {
+						LOGGER.debug("Weblink" + stbro + " already insered into HashMap ");
+					}
+				}
+
 			}
 
 		}
-		stopPooler = true;
+
 	}
 
 	/**
@@ -177,16 +206,14 @@ public class WebScrapperDelegate {
 	 * 
 	 * @throws FileNotFoundException
 	 */
-	public void stratResponsePooler() throws FileNotFoundException {
-
-		// out = new FileOutputStream(destFilePathWithName);
+	public void startDBInsertionPooler() throws FileNotFoundException {
 
 		Runnable pooler = new Runnable() {
 
 			@Override
 			public void run() {
 
-				while (!stopPooler || childFutureList.size() > 0) {
+				while (!Thread.interrupted()) {
 
 					Future<Response> future;
 
@@ -201,9 +228,8 @@ public class WebScrapperDelegate {
 							responseCode = response.getResponseCode();
 							LOGGER.debug("Processing the response of the URL" + response.getUrl());
 
-							ExtractedDataDetails details = new ExtractedDataDetails(url.toString(), responseCode,
-											destFilePathWithName, IOUtils.toString(response.getBody()), new Date(),
-											"WebScrapper");
+							InputStream body = response.getBody();
+							ExtractedDataDetails details = new ExtractedDataDetails(url.toString(), responseCode, IOUtils.toString(body), new Date(), "WebScrapper");
 
 							dbService.insertExtractedData(details);
 
@@ -238,24 +264,59 @@ public class WebScrapperDelegate {
 		executorService.execute(pooler);
 	}
 
-	/*
-	 * public void createLuceneIndexForFile(String filePath){ try { LuceneHelper
-	 * helper= new LuceneHelper();
-	 * 
-	 * InputStream is = new FileInputStream(new File(destFilePathWithName));
-	 * 
-	 * String string = IOUtils.toString(is,"UTF-8");
-	 * 
-	 * helper.addDoc(string);
-	 * 
-	 * List<Document> list=helper.getDocumentsForQueryString(
-	 * "Would deleted columns slow down reads?");
-	 * 
-	 * } catch (IOException e) { // TODO Auto-generated catch block
-	 * e.printStackTrace(); } catch (ParseException e) { // TODO Auto-generated
-	 * catch block e.printStackTrace(); }
-	 * 
-	 * }
-	 */
+	public void stratHtmlDataPooler() throws FileNotFoundException {
+
+		Runnable pooler = new Runnable() {
+
+			@Override
+			public void run() {
+
+				while (!Thread.interrupted()) {
+
+					String webUrl;
+
+					while ((webUrl = nextPageDataQueue.poll()) != null) {
+						try {
+
+							LOGGER.debug("Processing the link " + webUrl + " of earlier message ");
+							startScrapping(webUrl);
+						}
+						catch (MalformedURLException cause) {
+							LOGGER.error("MalformedURLException occred while writing file for the URL " + webUrl, cause);
+							cause.printStackTrace();
+						}
+						catch (InterruptedException e) {
+							LOGGER.error("InterruptedException occred while writing file for the URL " + webUrl, e);
+							e.printStackTrace();
+						}
+						catch (ExecutionException e) {
+							LOGGER.error("ExecutionException occred while writing file for the URL " + webUrl, e);
+							e.printStackTrace();
+						}
+						catch (IOException e) {
+							LOGGER.error("IOException occred while writing file for the URL " + webUrl, e);
+							e.printStackTrace();
+						}
+
+					}
+				}
+			}
+		};
+
+		executorService.execute(pooler);
+	}
+
+	public void startScrapping(String url) throws MalformedURLException, InterruptedException, ExecutionException,
+					IOException {
+		Future<Response> futureResponse = getFutureAsResponse(url);
+
+		final String pageData = getPageData( futureResponse.get().getBody());
+
+		String urlSubstring = url.substring(0, url.lastIndexOf('/'));
+
+		LOGGER.debug("Constant part of the Weblink "+ url+" is "+ urlSubstring);
+
+		processWeblinksinPageData(pageData, urlSubstring);
+	}
 
 }

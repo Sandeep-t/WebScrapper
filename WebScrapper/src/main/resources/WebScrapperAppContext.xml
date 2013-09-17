@@ -9,6 +9,7 @@
 	<import resource="WebScrapperDBContext.xml"/>
 	
 	<bean id="properties"
+	
 		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 		<property name="location" value="classpath:application.properties" />
 	</bean>
@@ -20,8 +21,7 @@
 	</bean>
 
 	<bean id="webScrapper" class="com.pramati.webscraper.delegate.WebScrapperDelegate">
-		<constructor-arg value="${target.file.location}" />
-		<constructor-arg value="${web.scrapped.file.name}" />
+		
 	</bean>
 
 	<bean id="extractor" class="com.pramati.webscraper.utils.HTMLLinkExtractor" />
@@ -31,7 +31,7 @@
 		<constructor-arg value="${executor.pool.thread.count}" />
 	</bean>
 	
-	<bean id="helper" class="com.pramati.webscraper.delegate.LuceneTaskDelegate" init-method="indexDbDataonStartup"	>
+	<bean id="helper" class="com.pramati.webscraper.delegate.LuceneTaskDelegate" >
 	<constructor-arg value="${index.directory.file.path}" />
 	</bean>
 	

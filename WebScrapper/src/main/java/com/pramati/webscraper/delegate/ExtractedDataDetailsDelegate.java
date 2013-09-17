@@ -15,7 +15,7 @@ public class ExtractedDataDetailsDelegate {
 	public void insertIntoExtractedDataDetails(ExtractedDataDetails details){
 		
 		mongoTemplate.save(details);
-		
+				
 	}
 	
 	public List<ExtractedDataDetails> getAllRecordDetails(){

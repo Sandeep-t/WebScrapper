@@ -26,6 +26,9 @@ public class HTMLLinkExtractor {
 	private static final Logger LOGGER = Logger.getLogger(HTMLLinkExtractor.class);
 	private static final String HTML_TAG_PATTERN = "(?i)<a([^>]+)>(.*?)</a>";
 	private static final String HTML_HREF_TAG_PATTERN = "\\s*(?i)href\\s*=\\s*(\"([^\"]*\")|'[^']*'|([^'\">\\s]+))";
+	
+	
+	
 
 	public HTMLLinkExtractor() {
 		patternTag = Pattern.compile(HTML_TAG_PATTERN);
@@ -63,14 +66,6 @@ public class HTMLLinkExtractor {
 
 				final HtmlLink link = new HtmlLink(linkAddress,linkText);
 				
-				/**
-				 *1. check if the link contains Earlier-Messages from a static map loaded in the Startup
-				 *map.keyset.conatins() 
-				 *2. If 
-				 * 
-				 * 
-				 * 
-				 */
 
 				result.add(link);
 
@@ -81,3 +76,4 @@ public class HTMLLinkExtractor {
 		return result;
 	}
 }
+

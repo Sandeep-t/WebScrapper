@@ -78,7 +78,7 @@
 			<artifactId>cglib</artifactId>
 			<version>2.2.2</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-core</artifactId>
@@ -107,9 +107,12 @@
 			<artifactId>lucene-facet</artifactId>
 			<version>4.4.0</version>
 		</dependency>
-		
-
-
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20090211</version>
+		</dependency>
+	
 	</dependencies>
 
 	<reporting>

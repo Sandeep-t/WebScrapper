@@ -1,23 +1,29 @@
 package com.pramati.webscraper.db.model;
 
+import java.io.Serializable;
 import java.util.Date;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 
-@Document(collection = "WebScrapper")
-public class ExtractedDataDetails {
+@Document(collection = "ExtractedDataDetails")
+public class ExtractedDataDetails  implements Serializable{
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8476361648715633075L;
+
 	@Id
 	private String id;
 
+	@Indexed(unique = true)
 	private String url;
 	
 	private int statusCode;
 	
-	private String fileNameWithPath;
-
 	private String htmlData;	
 	
 	private Date createdDate;
@@ -71,20 +77,6 @@ public class ExtractedDataDetails {
 	}
 
 
-	/**
-	 * @return the fileNameWithPath
-	 */
-	public String getFileNameWithPath() {
-		return fileNameWithPath;
-	}
-
-	/**
-	 * @param fileNameWithPath the fileNameWithPath to set
-	 */
-	public void setFileNameWithPath(String fileNameWithPath) {
-		this.fileNameWithPath = fileNameWithPath;
-	}
-	
 	/**
 	 * @return the htmlData
 	 */
@@ -163,23 +155,10 @@ public class ExtractedDataDetails {
 	}
 	
 	
-public ExtractedDataDetails(String url, int statusCode,
-					String fileNameWithPath, String htmlData, Date createdDate, Date modifiedDate, String createdby,
-					String modifiedBy) {
-		this.url = url;
-		this.statusCode = statusCode;
-		this.fileNameWithPath = fileNameWithPath;
-		this.htmlData = htmlData;
-		this.createdDate = createdDate;
-		this.modifiedDate = modifiedDate;
-		this.createdby = createdby;
-		this.modifiedBy = modifiedBy;
-	}
 
-public ExtractedDataDetails( String url, int statusCode, String fileNameWithPath, String htmlData, Date createdDate, String createdby) {
+public ExtractedDataDetails( String url, int statusCode, String htmlData, Date createdDate, String createdby) {
 	this.url = url;
 	this.statusCode = statusCode;
-	this.fileNameWithPath = fileNameWithPath;
 	this.htmlData = htmlData;
 	this.createdDate = createdDate;
 	this.createdby = createdby;
@@ -191,7 +170,7 @@ public ExtractedDataDetails( String url, int statusCode, String fileNameWithPath
  */
 @Override
 public String toString() {
-	return "ExtractedDataDetails [id=" + id + ", url=" + url + ", statusCode=" + statusCode + ", fileNameWithPath=" + fileNameWithPath + ", htmlData=" + htmlData
+	return "ExtractedDataDetails [id=" + id + ", url=" + url + ", statusCode=" + statusCode + ",  htmlData=" + htmlData
 					+ ", createdDate=" + createdDate + ", modifiedDate=" + modifiedDate + ", createdby=" + createdby
 					+ ", modifiedBy=" + modifiedBy + "]";
 }
