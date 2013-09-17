@@ -7,13 +7,15 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import net.sf.json.JSONException;
+
 import org.apache.log4j.Logger;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.pramati.webscraper.db.model.ExtractedDataDetails;
 import com.pramati.webscraper.delegate.WebScrapperDelegate;
+import com.pramati.webscraper.utils.AMQPJsonUtil;
 
 public class WebScrapperService {
 
@@ -42,15 +44,20 @@ public class WebScrapperService {
 
 		LOGGER.debug("Processing Url  " + url);
 
-		luceneSearch.startIndexing();
+		//luceneSearch.startIndexing();
 
-		webScrapper.startDBInsertionPooler();
+		//webScrapper.startDBInsertionPooler();
 
-		webScrapper.stratHtmlDataPooler();
+		//webScrapper.stratHtmlDataPooler();
 
-		webScrapper.startScrapping(url);
+		//webScrapper.startScrapping(url);
 
-		List<JSONObject> seacrchResultJson = luceneSearch.searchForData("Anti-compaction");
+		List<String> searchResultJson = luceneSearch.searchForData("Anti-compaction");
+		for(String jsonString:searchResultJson){
+			LOGGER.debug("Object to JSON conversion "+ jsonString.toString());
+			
+			
+		}
 
 	}
 

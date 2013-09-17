@@ -18,10 +18,7 @@ public final class WebScrapperApp {
 
 		WebScrapperService webScraperService = (WebScrapperService) ctx.getBean("webScraperService");
 		
-		webScraperService.startWebScrapping();
-		
-		
-		
+		webScraperService.startWebScrapping();		
 
 	}
 

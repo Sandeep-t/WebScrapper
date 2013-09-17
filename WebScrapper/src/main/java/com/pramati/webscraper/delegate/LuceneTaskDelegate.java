@@ -59,7 +59,6 @@ public class LuceneTaskDelegate {
 
 	public LuceneTaskDelegate(String indexDirPath) throws IOException {
 		//clearIndexDirectory(indexDirPath);
-
 		index = FSDirectory.open(new File(indexDirPath));
 
 		analyzer = new StandardAnalyzer(Version.LUCENE_44);
